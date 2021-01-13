@@ -140,7 +140,6 @@ def main(args):
     util.mkdir(args['output'], args['clean'])
 
     # Tensorflow logging
-    tf.logging.set_verbosity(tf.logging.WARN)
     os.environ['TF_CPP_MIN_LOG_LEVEL'] = '1'
 
     # Logging to DWF server
@@ -180,7 +179,7 @@ def main(args):
     logger.info('Input csv is ' + args['csv'])
 
     # Seeding global random states, just in case...
-    tf.set_random_seed(args['seed'])
+    tf.random.set_seed(args['seed'])
     # This is used for sklearn algorithms under the hood so we don't have to manually
     # set the random seed separately every time
     np.random.seed(args['seed'])
