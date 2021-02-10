@@ -11,6 +11,7 @@ import classifier as cl
 import pandas2tf
 
 EPS = 1e-8
+CLASS_NUM = 2
 CLASSES = 2
 
 def log(msg):
@@ -37,10 +38,26 @@ parser.add_argument('--sandbox', default=os.path.abspath('sandbox'), help='Inter
 # with a reduced (halved) learning rate
 #
 
+
+def to_tf_dataset(src_data, batch_size):
+    return tf.data.Dataset.from_tensor_slices((src_data[0].values, src_data[1].values)).batch(batch_size, drop_remainder=True)
+
+def preds_to_classes(preds):
+    return (preds[:, 0] >= 0.5).astype(int)
+
+def results_to_dict(results):
+    keys = ['loss', 'accuracy', 'precision', 'recall', 'tp', 'tn', 'fp', 'fn', 'fmes']
+    ret = dict(zip(keys, results))
+
+    #TODO: Fix this if MCC is ready
+    ret['mcc'] = -1
+    
+    return ret
+
 def predict(classifier, test, args, sargs_str):
     sargs = util.parse(parser, sargs_str.split())
-    preds = classifier.predict(input_fn=lambda:pandas2tf.eval_input_fn(test, sargs['batch']))
-    return [pred['class_ids'] for pred in preds]
+    preds = classifier.predict(to_tf_dataset(test, sargs['batch']), batch_size = sargs['batch'])
+    return preds_to_classes(preds)
     
 def learn(train, dev, test, args, sargs_str):
 
@@ -65,30 +82,38 @@ def learn(train, dev, test, args, sargs_str):
     best_result = {'fmes': -1}
     best_model_dir = None
     best_classifier = None
+
+    train_set = to_tf_dataset(train, sargs['batch'])
+    dev_set = to_tf_dataset(dev, sargs['batch'])
+
     while miss_streak < sargs['max_misses']:
 
         model_dir = os.path.join(sargs['sandbox'], 'run_' + str(rounds) + '_' + str(miss_streak))
 
         extra_args = {
-            'classes': CLASSES,
+            'class_num': CLASS_NUM,
             'columns': my_feature_columns,
             'steps_per_epoch': steps_per_epoch,
             'learning_rate': sargs['lr'] / (2 ** misses),
             'model_dir': model_dir,
-            'warm_start_dir': best_model_dir
+            'warm_start_dir': best_model_dir,
+            'feature_num' : train[0].shape[1]
         }
         merged_args = {**args, **sargs, **extra_args}
 
         # Create a new classifier instance
         classifier = cl.create_classifier(merged_args)
 
-        # Train the model for exactly 1 epoch
-        classifier.train(
-            input_fn=lambda:pandas2tf.train_input_fn(train, sargs['batch']),
-            steps=steps_per_epoch)
+        # Train the model for exactly 1 epoch      
+        classifier.fit(
+            train_set,
+            epochs = 1,
+            batch_size = sargs['batch']
+        )
 
         # Evaluate the model
-        eval_result = classifier.evaluate(input_fn=lambda:pandas2tf.eval_input_fn(dev, sargs['batch']))
+        eval_result = classifier.evaluate(dev_set, batch_size = sargs['batch'])
+        eval_result = results_to_dict(eval_result)
         log('Round ' + str(rounds) + '_' + str(miss_streak) + ', Fmes: ' + str(best_result['fmes']) + ' --> ' + str(eval_result['fmes']))
         if eval_result['fmes'] > best_result['fmes']:
             best_result = eval_result
@@ -109,8 +134,13 @@ def learn(train, dev, test, args, sargs_str):
                 tf.summary.FileWriterCache.clear()
                 shutil.rmtree(abs_m_dir)                
 
-    final_result_train = best_classifier.evaluate(input_fn=lambda:pandas2tf.eval_input_fn(train, sargs['batch']))
-    final_result_dev = best_classifier.evaluate(input_fn=lambda:pandas2tf.eval_input_fn(dev, sargs['batch']))
-    final_result_test = best_classifier.evaluate(input_fn=lambda:pandas2tf.eval_input_fn(test, sargs['batch']))
+    final_result_train = best_classifier.evaluate(train_set, batch_size = sargs['batch'])
+    final_result_dev = best_classifier.evaluate(dev_set, batch_size = sargs['batch'])
+    final_result_test = best_classifier.evaluate(to_tf_dataset(test, sargs['batch']), batch_size = sargs['batch'])
+
+    final_result_train = results_to_dict(final_result_train)
+    final_result_dev = results_to_dict(final_result_dev)
+    final_result_test = results_to_dict(final_result_test)
+
     return final_result_train, final_result_dev, final_result_test, best_classifier
        

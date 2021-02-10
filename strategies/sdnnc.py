@@ -46,11 +46,10 @@ def predict(classifier, test, args, sargs_str):
     return preds_to_classes(preds)
 
 def results_to_dict(results):
-    keys = ['loss', 'accuracy', 'precision', 'recall', 'tp', 'tn', 'fp', 'fn']
+    keys = ['loss', 'accuracy', 'precision', 'recall', 'tp', 'tn', 'fp', 'fn', 'fmes']
     ret = dict(zip(keys, results))
 
-    #TODO: Fix this if MCC and FMES are ready
-    ret['fmes'] = -1
+    #TODO: Fix this if MCC is ready
     ret['mcc'] = -1
     
     return ret

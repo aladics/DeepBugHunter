@@ -1,6 +1,7 @@
 import numpy as np
 import tensorflow as tf
 import tensorflow.keras.metrics as tf_metrics
+import tensorflow_addons as tfa
 
 import metrics as mt
 
@@ -15,7 +16,7 @@ def create_classifier(args):
     #TODO: Add mt.mcc and mt.fmes
     eval_metrics = [tf_metrics.BinaryAccuracy(), tf_metrics.Precision(), tf_metrics.Recall(),
                     tf_metrics.TruePositives(), tf_metrics.TrueNegatives(), tf_metrics.FalsePositives(),
-                    tf_metrics.FalseNegatives()]
+                    tf_metrics.FalseNegatives(), tfa.metrics.F1Score(1, threshold=0.5)]
 
     model = tf.keras.models.Model(inputs = input, outputs = x)
     model.compile(loss ='binary_crossentropy', optimizer = tf.keras.optimizers.Adagrad(args['learning_rate']), metrics = eval_metrics)
