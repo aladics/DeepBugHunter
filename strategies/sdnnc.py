@@ -90,7 +90,7 @@ def learn(train, dev, test, args, sargs_str):
     train_set = to_tf_dataset(train, sargs['batch'])
     classifier.fit(
         train_set,
-        epochs = 1,
+        epochs = sargs['epochs'],
         batch_size = sargs['batch'])
 
     # Evaluate the model

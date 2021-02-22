@@ -13,7 +13,7 @@ def create_classifier(args):
     x =  tf.keras.layers.Dense(1, activation = 'sigmoid')(x)
 
 
-    #TODO: Add mt.mcc and mt.fmes
+    #TODO: Add mt.mcc
     eval_metrics = [tf_metrics.BinaryAccuracy(), tf_metrics.Precision(), tf_metrics.Recall(),
                     tf_metrics.TruePositives(), tf_metrics.TrueNegatives(), tf_metrics.FalsePositives(),
                     tf_metrics.FalseNegatives(), tfa.metrics.F1Score(1, threshold=0.5)]
